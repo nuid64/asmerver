@@ -29,7 +29,7 @@ open_response_file:
     cmp     rax, 0x00 
     jge     read_response
     mov     rdi, err_msg_open
-    call    error                      ; exit with error
+    jmp     error                      ; exit with error
 
 read_response:
     mov     rdi, rax                   ; pass fd
@@ -41,7 +41,7 @@ read_response:
     cmp     rax, 0x00
     jge     .success
     mov     rdi, err_msg_read
-    call    error                      ; exit with error
+    jmp     error                      ; exit with error
 
 .success:
     mov     [response_buf_len], rax    ; write length of response
@@ -56,7 +56,7 @@ create_socket:
     cmp     rax, 0x00
     jge     set_sock_opt
     mov     rdi, err_msg_socket
-    call    error                      ; exit with error
+    jmp     error                      ; exit with error
 
 set_sock_opt:
     push    rax                        ; save sockfd
@@ -71,7 +71,7 @@ set_sock_opt:
     cmp     rax, 0x00
     je      bind
     mov     rdi, err_msg_sock_opt
-    call    error                      ; exit with error
+    jmp     error                      ; exit with error
 
 bind:
     pop     rax                        ; get sockfd
@@ -85,7 +85,7 @@ bind:
     cmp     rax, 0x00
     je      listen
     mov     rdi, err_msg_bind
-    call    error                      ; exit with error
+    jmp     error                      ; exit with error
 
 listen:
     pop     rax                        ; get sockfd
@@ -98,7 +98,7 @@ listen:
     je      accept
     call    sys_close                  ; close socket
     mov     rdi, err_msg_listen
-    call    error                      ; exit with error
+    jmp     error                      ; exit with error
 
 accept:
     mov     rdi, [list_sock]           ; pass list_sockfd
@@ -109,7 +109,7 @@ accept:
     cmp     rax, 0x00
     jge     send_status
     mov     rdi, err_msg_accept
-    call    error 
+    jmp     error                      ; exit with error
 
 send_status:
     push    rdi                        ; save list_sockfd 
@@ -169,28 +169,27 @@ send_status:
     cmp     rax, 0x00
     jge     .success
     mov     rdi, err_msg_send
-    call    error                      ; exit with error
+    jmp     error                      ; exit with error
 
 .success:
     jmp     accept                     ; accept loop
 
+
 error:
     call    eprintln
-    call    exit_failure
+    jmp     exit_failure
 
 
 ; exit program and restore resources
 exit_success:
     mov     rdi, 0x00                  ; EXIT_SUCCESS
     call    sys_exit
-    ret
 
 
 ; exit program with error
 exit_failure:
     mov     rdi, 0x01                  ; EXIT_FAILURE
     call    sys_exit
-    ret
 
 
     SECTION .bss
@@ -201,7 +200,7 @@ exit_failure:
     cont_len_buf       resb 19
 
 
-    SECTION .data
+    SECTION .rodata
 
     sock_addr: istruc sockaddr_in
         at sockaddr_in.sin_family, dw AF_INET
