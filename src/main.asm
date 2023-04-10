@@ -28,7 +28,7 @@ open_response_file:
     ; error info
     cmp     rax, 0x00 
     jge     read_response
-    mov     rax, err_msg_open
+    mov     rdi, err_msg_open
     call    error                      ; exit with error
 
 read_response:
