@@ -227,7 +227,7 @@ exit_failure:
 
     SECTION .rodata
 
-    help_msg           db    "asmerver 0.2",0x0a,"nuid64 <lvkuzvesov@proton.me>",0x0a,"Usage: ",0x0a,0x09,"asmerver <port>",0x00
+    help_msg           db    "asmerver 0.3",0x0a,"nuid64 <lvkuzvesov@proton.me>",0x0a,"Usage: ",0x0a,0x09,"asmerver <port>",0x00
 
     err_msg_open       db    "Failed to open response file",0x00
     err_msg_read       db    "Failed to read response",0x00
