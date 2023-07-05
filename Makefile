@@ -3,7 +3,7 @@ sources = src/main.asm src/net.asm src/print.asm src/string.asm
 
 all: asmerver
 
-release: $(sources)
+release:
 		nasm -felf64 -I src/ src/main.asm -o obj/main.o
 		ld obj/main.o -o $(target)
 		strip -s $(target)

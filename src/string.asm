@@ -92,6 +92,38 @@ itoa:
     ret
 
 
+; int atoi(char *buf)
+; char* to int conversion
+atoi:
+    push    rsi
+    mov     rax, 0
+
+.loop:
+    movzx   rsi, byte [rdi]
+    test    rsi, rsi                   ; check for \0
+    je      .done
+
+    cmp     rsi, 48                    ; check symbol is digit
+    jl      .error
+    cmp     rsi, 57
+    jg      .error
+
+    sub     rsi, 48                    ; convert to decimal
+    imul    rax, 10
+    add     rax, rsi
+
+    inc     rdi
+    jmp     .loop
+
+.error:
+    mov     rax, -1                    ; -1 on error
+
+.done:
+    pop     rsi
+
+    ret
+
+
 ; int calc_digits_count(int num)
 ; calculates count of digits in number
 calc_digits_count:

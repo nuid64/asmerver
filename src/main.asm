@@ -1,23 +1,40 @@
+; constants
+%define IP               htonl(INADDR_ANY) ; 0x00000000
+%define PORT             8008
+%define BACKLOG          8
+%define RESPONSE_BUF_CAP 1024
+
+    SECTION .text
 %include "string.asm"
 %include "print.asm"
 %include "net.asm"
 %include "syscall.asm"
 
-; constants
-IP               equ htonl(INADDR_ANY) ; 0x00000000
-PORT             equ htons(8008)
-BACKLOG          equ 0x08
-RESPONSE_BUF_CAP equ 1024
-
-    global _start
-    SECTION .text
-
+global _start
 _start:
     ; clear registers
     xor     rax, rax
     xor     rdi, rdi
     xor     rsi, rsi
     xor     rdx, rdx
+
+handle_arguments:
+    pop     r8                         ; pop number of arguments
+    cmp     r8, 2                      ; check arguments count is good
+    je      .check_arguments
+
+    mov     rdi, help_msg              ; print help message otherwise
+    call    println
+    jmp     exit_failure
+
+.check_arguments:
+    pop     r8                         ; discard binary name
+    pop     rdi                        ; listening port
+    call    atoi                       ; convert to integer
+    xchg    ah, al                     ; change byte order to big endian
+    mov     [list_port], rax           ; save listening port
+    pop     r8                         ; serving directory
+    mov     [serving_directory], r8    ; save serving directory
 
 ; SENDING STATIC RESPONSE FOR NOW
 open_response_file:
@@ -50,7 +67,7 @@ create_socket:
     mov     rdi, AF_INET               ; pass domain (0x02)
     mov     rsi, SOCK_STREAM           ; pass type (0x01)
     mov     rdx, IPPROTO_TCP           ; pass protocol (0x06)
-    call    sys_socket                 ; sockfd in rax on success
+    call    sys_socket                 ; list_sockfd in rax on success
 
     ; error info
     cmp     rax, 0x00
@@ -59,7 +76,7 @@ create_socket:
     jmp     error                      ; exit with error
 
 set_sock_opt:
-    push    rax                        ; save sockfd
+    mov     [list_sock], rax           ; save list_sockfd
     mov     rdi, rax                   ; pass socket
     mov     rsi, 0x01                  ; pass level (SOL_SOCKET)
     mov     rdx, 0x02                  ; pass option_name (SO_REUSEADDR)
@@ -70,13 +87,14 @@ set_sock_opt:
     ; error info
     cmp     rax, 0x00
     je      bind
-    mov     rdi, err_msg_sock_opt
+    mov     rdi, err_msg_socket_opt
     jmp     error                      ; exit with error
 
 bind:
-    pop     rax                        ; get sockfd
-    push    rax                        ; save sockfd
-    mov     rdi, rax                   ; pass sockfd
+    mov     rsi, [list_port]           ; get list_sockfd
+    mov     [sock_addr + sin_port], rsi; set port
+
+    mov     rdi, [list_sock]           ; pass list_sockfd
     mov     rsi, sock_addr             ; pass *addr
     mov     rdx, sockaddr_in_size      ; pass addrlen (size of sock_addr)
     call    sys_bind                   ; 0 in rax on success
@@ -88,9 +106,7 @@ bind:
     jmp     error                      ; exit with error
 
 listen:
-    pop     rax                        ; get sockfd
-    mov     [list_sock], rax           ; write listening sockfd
-    mov     rdi, [list_sock]           ; pass sockfd
+    mov     rdi, [list_sock]           ; pass list_sockfd
     mov     rsi, BACKLOG               ; pass backlog (max len of queue of pending conns)
     call    sys_listen                 ; 0 in rax on success
 
@@ -112,7 +128,6 @@ accept:
     jmp     error                      ; exit with error
 
 send_status:
-    push    rdi                        ; save list_sockfd 
     mov     r8, rax                    ; save acc_sockfd
 
     mov     rsi, http_200              ; pass *buf
@@ -164,8 +179,6 @@ send_status:
 
     call    sys_close                  ; close socket
 
-    pop     rdi                        ; get list_sockfd
-
     cmp     rax, 0x00
     jge     .success
     mov     rdi, err_msg_send
@@ -194,28 +207,32 @@ exit_failure:
 
     SECTION .bss
 
+    serving_directory  resq 1
     response_buf       resb RESPONSE_BUF_CAP
     response_buf_len   resq 1
-    list_sock          resd 1
+    list_sock          resq 1
+    list_port          resw 1
     cont_len_buf       resb 19
+
+
+    SECTION .data
+
+    sock_addr: istruc sockaddr_in
+        at sin_family, dw AF_INET
+        at sin_port,   dw 0
+        at sin_addr,   dd INADDR_ANY
+        at sin_zero,   dd 0x0000000000000000
+    iend
 
 
     SECTION .rodata
 
-    sock_addr: istruc sockaddr_in
-        at sockaddr_in.sin_family, dw AF_INET
-        at sockaddr_in.sin_port,   dw PORT
-        at sockaddr_in.sin_addr,   dd INADDR_ANY
-        at sockaddr_in.sin_zero,   dd 0x0000000000000000
-    iend
-
-    address_addr       db    0x00000000
-    address_family     db    0x0000
+    help_msg           db    "asmerver 0.2",0x0a,"nuid64 <lvkuzvesov@proton.me>",0x0a,"Usage: ",0x0a,0x09,"asmerver <port>",0x00
 
     err_msg_open       db    "Failed to open response file",0x00
     err_msg_read       db    "Failed to read response",0x00
     err_msg_socket     db    "Failed to create socket",0x00
-    err_msg_sock_opt   db    "Failed to set socket options",0x00
+    err_msg_socket_opt db    "Failed to set socket options",0x00
     err_msg_bind       db    "Failed to bind the address",0x00
     err_msg_listen     db    "Failed to make socket listen",0x00
     err_msg_accept     db    "Failed to accept connection",0x00
