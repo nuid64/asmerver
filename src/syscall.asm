@@ -85,3 +85,11 @@ sys_exit:
     mov     rax, 0x3c
     syscall
     ret
+
+
+; int chdir(const char *path)
+; return: 0 on success, -1 on error
+sys_chdir:
+    mov     rax, 0x50
+    syscall
+    ret

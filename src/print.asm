@@ -77,6 +77,6 @@ eprint:
 
     SECTION .data
 
-err_prefix      db  "[Error]: ",0x00
+err_prefix      db  "Error: ",0x00
 err_prefix_len  equ $-err_prefix - 1
 linefeed        db  0x0a, 0x00

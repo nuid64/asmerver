@@ -1,14 +1,13 @@
-; constants
-%define IP               htonl(INADDR_ANY) ; 0x00000000
-%define PORT             8008
-%define BACKLOG          8
-%define RESPONSE_BUF_CAP 1024
-
-    SECTION .text
 %include "string.asm"
 %include "print.asm"
 %include "net.asm"
 %include "syscall.asm"
+
+; constants
+%define BACKLOG          8
+%define RESPONSE_BUF_CAP 1024
+
+    SECTION .text
 
 global _start
 _start:
@@ -20,21 +19,28 @@ _start:
 
 handle_arguments:
     pop     r8                         ; pop number of arguments
-    cmp     r8, 2                      ; check arguments count is good
-    je      .check_arguments
+    cmp     r8, 3                      ; check arguments count is good
+    je      .get_arguments
 
-    mov     rdi, help_msg              ; print help message otherwise
+    mov     rdi, help_msg              ; print the help and exit otherwise
     call    println
     jmp     exit_failure
 
-.check_arguments:
+.get_arguments:
     pop     r8                         ; discard binary name
     pop     rdi                        ; listening port
     call    atoi                       ; convert to integer
     xchg    ah, al                     ; change byte order to big endian
     mov     [list_port], rax           ; save listening port
-    pop     r8                         ; serving directory
-    mov     [serving_directory], r8    ; save serving directory
+    pop     rdi                        ; serving directory
+    mov     [serving_directory], rdi   ; save serving directory
+
+change_directory:
+    call    sys_chdir
+    cmp     rax, 0
+    jge     open_response_file         ; WARN While response is static
+    mov     rdi, err_msg_dir
+    jmp     error                      ; exit with error
 
 ; SENDING STATIC RESPONSE FOR NOW
 open_response_file:
@@ -43,7 +49,7 @@ open_response_file:
     call    sys_open                   ; fd on success
 
     ; error info
-    cmp     rax, 0x00 
+    cmp     rax, 0 
     jge     read_response
     mov     rdi, err_msg_open
     jmp     error                      ; exit with error
@@ -55,7 +61,7 @@ read_response:
     call    sys_read                   ; bytes read in rax on success
 
     ; error info
-    cmp     rax, 0x00
+    cmp     rax, 0
     jge     .success
     mov     rdi, err_msg_read
     jmp     error                      ; exit with error
@@ -70,7 +76,7 @@ create_socket:
     call    sys_socket                 ; list_sockfd in rax on success
 
     ; error info
-    cmp     rax, 0x00
+    cmp     rax, 0
     jge     set_sock_opt
     mov     rdi, err_msg_socket
     jmp     error                      ; exit with error
@@ -85,7 +91,7 @@ set_sock_opt:
     call    sys_setsockopt             ; 0 in rax on success
 
     ; error info
-    cmp     rax, 0x00
+    cmp     rax, 0
     je      bind
     mov     rdi, err_msg_socket_opt
     jmp     error                      ; exit with error
@@ -100,7 +106,7 @@ bind:
     call    sys_bind                   ; 0 in rax on success
 
     ; error info
-    cmp     rax, 0x00
+    cmp     rax, 0
     je      listen
     mov     rdi, err_msg_bind
     jmp     error                      ; exit with error
@@ -110,7 +116,7 @@ listen:
     mov     rsi, BACKLOG               ; pass backlog (max len of queue of pending conns)
     call    sys_listen                 ; 0 in rax on success
 
-    cmp     rax, 0x00
+    cmp     rax, 0
     je      accept
     call    sys_close                  ; close socket
     mov     rdi, err_msg_listen
@@ -122,7 +128,7 @@ accept:
     mov     rdx, 0x00                  ; pass addrlen (size of sockaddr) (NULL)
     call    sys_accept                 ; accepted socket's fd in rax on success
 
-    cmp     rax, 0x00
+    cmp     rax, 0
     jge     send_status
     mov     rdi, err_msg_accept
     jmp     error                      ; exit with error
@@ -179,7 +185,7 @@ send_status:
 
     call    sys_close                  ; close socket
 
-    cmp     rax, 0x00
+    cmp     rax, 0
     jge     .success
     mov     rdi, err_msg_send
     jmp     error                      ; exit with error
@@ -227,8 +233,9 @@ exit_failure:
 
     SECTION .rodata
 
-    help_msg           db    "asmerver 0.3",0x0a,"nuid64 <lvkuzvesov@proton.me>",0x0a,"Usage: ",0x0a,0x09,"asmerver <port>",0x00
+    help_msg           db    "asmerver 0.3",0x0a,"nuid64 <lvkuzvesov@proton.me>",0x0a,"Usage: ",0x0a,0x09,"asmerver <port> <served directory>",0x00
 
+    err_msg_dir        db    "Failed to open served directory",0x00
     err_msg_open       db    "Failed to open response file",0x00
     err_msg_read       db    "Failed to read response",0x00
     err_msg_socket     db    "Failed to create socket",0x00
