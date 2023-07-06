@@ -1,12 +1,15 @@
-%include "string.asm"
-%include "print.asm"
+%include "http.asm"
 %include "net.asm"
+%include "print.asm"
+%include "string.asm"
 %include "syscall.asm"
 
+; TODO Allocate exact memory
 ; constants
 %define BACKLOG          8
-%define RESPONSE_BUF_CAP 1024
 %define REQUEST_BUF_CAP  2048
+%define RESPONSE_BUF_CAP 2048
+%define CONTENT_BUF_CAP  1024
 
     SECTION .text
 
@@ -51,14 +54,14 @@ open_response_file:
 
     ; error info
     cmp     rax, 0 
-    jge     read_response
+    jge     read_content
     mov     rdi, err_msg_open
     jmp     error                      ; exit with error
 
-read_response:
+read_content:
     mov     rdi, rax                   ; pass fd
-    mov     rsi, response_buf          ; pass *buf
-    mov     rdx, RESPONSE_BUF_CAP      ; pass count
+    mov     rsi, content_buf           ; pass *buf
+    mov     rdx, CONTENT_BUF_CAP       ; pass count
     call    sys_read                   ; bytes read in rax on success
 
     ; error info
@@ -68,7 +71,7 @@ read_response:
     jmp     error                      ; exit with error
 
 .success:
-    mov     [response_buf_len], rax    ; write length of response
+    mov     [content_buf_len], rax     ; write length of content
 
 create_socket:
     mov     rdi, AF_INET               ; pass domain (0x02)
@@ -143,83 +146,20 @@ read_request:
     call    sys_read                   ; bytes read on success
 
     cmp     rax, 0
-    jge     send_status
+    jge     send_response
     mov     rdi, err_msg_read_req
     jmp     error                      ; exit with error
 
-; TODO Concatenate this in one string
-send_status:
-    mov     rsi, http_200              ; pass *buf
-    mov     rdi, rsi
-    call    slen
+send_response:
+    mov     rdi, response_buf          ; pass *buf
+    mov     rsi, content_buf           ; pass *content
+    call    construct_http_200         ; http 200 response
+
+    call    slen                       ; calculate length of response
     mov     rdx, rax                   ; pass count
+    mov     rsi, rdi                   ; pass *buf
     mov     rdi, r8                    ; pass fd (acc_sockfd)
     call    sys_sendto                 ; bytes sent in rax on success
-
-    cmp     rax, 0
-    jge     .send_content_length_label
-    mov     rdi, err_msg_send
-    jmp     error                      ; exit with error
-
-.send_content_length_label:
-    mov     rdi, r8                    ; pass fd (acc_sockfd)
-    mov     rsi, cont_length           ; pass *buf
-    mov     rdx, cont_length_len       ; pass count
-    call    sys_sendto                 ; bytes sent in rax on success
-
-    cmp     rax, 0
-    jge     .send_content_length
-    mov     rdi, err_msg_send
-    jmp     error                      ; exit with error
-
-
-.send_content_length:
-    mov     rdi, [response_buf_len]
-    mov     rsi, cont_len_buf
-    call    itoa                       ; convert response length to string
-
-    mov     rdi, rsi                   ; pass *buf
-    call    slen
-    mov     rdx, rax                   ; pass count
-
-    mov     rdi, r8                    ; pass fd (acc_sockfd)
-    call    sys_sendto                 ; bytes sent in rax on success
-
-    cmp     rax, 0
-    jge     .send_cr_lf
-    mov     rdi, err_msg_send
-    jmp     error                      ; exit with error
-
-.send_cr_lf:
-    mov     rdi, r8                    ; pass fd (acc_sockfd)
-    mov     rsi, cr_lf                 ; pass *buf
-    mov     rdx, 2                     ; pass count
-    call    sys_sendto                 ; bytes sent in rax on success
-
-    cmp     rax, 0
-    jge     .second_cr_lf
-    mov     rdi, err_msg_send
-    jmp     error                      ; exit with error
-
-.second_cr_lf:
-    mov     rdi, r8                    ; passs fd (acc_sockfd)
-    mov     rsi, cr_lf                 ; pass *buf
-    mov     rdx, 2                     ; pass count
-    call    sys_sendto                 ; bytes sent in rax on success
-
-    cmp     rax, 0
-    jge     .send_content
-    mov     rdi, err_msg_send
-    jmp     error                      ; exit with error
-
-.send_content:
-    mov     rdi, response_buf
-    call    slen                       ; calc response length
-    mov     rdx, rax                   ; pass count
-
-    mov     rdi, r8                    ; pass fd
-    mov     rsi, response_buf          ; pass *buf
-    call    sys_sendto                 ; bytes sent placed in rax on success
 
     cmp     rax, 0
     jge     .close_socket
@@ -259,7 +199,8 @@ exit_failure:
 
     serving_directory  resq 1
     response_buf       resb RESPONSE_BUF_CAP
-    response_buf_len   resq 1
+    content_buf        resb CONTENT_BUF_CAP
+    content_buf_len    resq 1
     request_buf        resb REQUEST_BUF_CAP
     request_buf_len    resq 1
     list_sock          resq 1

@@ -1,5 +1,5 @@
 target = asmerver
-sources = src/main.asm src/net.asm src/print.asm src/string.asm
+sources = src/main.asm src/net.asm src/print.asm src/string.asm src/syscall.asm src/os.asm src/http.asm
 
 all: asmerver
 
