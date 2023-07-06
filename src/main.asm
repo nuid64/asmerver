@@ -6,6 +6,7 @@
 ; constants
 %define BACKLOG          8
 %define RESPONSE_BUF_CAP 1024
+%define REQUEST_BUF_CAP  2048
 
     SECTION .text
 
@@ -129,13 +130,25 @@ accept:
     call    sys_accept                 ; accepted socket's fd in rax on success
 
     cmp     rax, 0
-    jge     send_status
+    jge     read_request
     mov     rdi, err_msg_accept
     jmp     error                      ; exit with error
 
-send_status:
+read_request:
     mov     r8, rax                    ; save acc_sockfd
 
+    mov     rdi, r8                    ; pass acc_sockfd
+    mov     rsi, request_buf           ; pass *buf
+    mov     rdx, REQUEST_BUF_CAP       ; pass count
+    call    sys_read                   ; bytes read on success
+
+    cmp     rax, 0
+    jge     send_status
+    mov     rdi, err_msg_read_req
+    jmp     error                      ; exit with error
+
+; TODO Concatenate this in one string
+send_status:
     mov     rsi, http_200              ; pass *buf
     mov     rdi, rsi
     call    slen
@@ -143,11 +156,21 @@ send_status:
     mov     rdi, r8                    ; pass fd (acc_sockfd)
     call    sys_sendto                 ; bytes sent in rax on success
 
+    cmp     rax, 0
+    jge     .send_content_length_label
+    mov     rdi, err_msg_send
+    jmp     error                      ; exit with error
+
 .send_content_length_label:
     mov     rdi, r8                    ; pass fd (acc_sockfd)
     mov     rsi, cont_length           ; pass *buf
     mov     rdx, cont_length_len       ; pass count
     call    sys_sendto                 ; bytes sent in rax on success
+
+    cmp     rax, 0
+    jge     .send_content_length
+    mov     rdi, err_msg_send
+    jmp     error                      ; exit with error
 
 
 .send_content_length:
@@ -162,17 +185,32 @@ send_status:
     mov     rdi, r8                    ; pass fd (acc_sockfd)
     call    sys_sendto                 ; bytes sent in rax on success
 
+    cmp     rax, 0
+    jge     .send_cr_lf
+    mov     rdi, err_msg_send
+    jmp     error                      ; exit with error
+
 .send_cr_lf:
     mov     rdi, r8                    ; pass fd (acc_sockfd)
     mov     rsi, cr_lf                 ; pass *buf
     mov     rdx, 2                     ; pass count
     call    sys_sendto                 ; bytes sent in rax on success
-    
 
+    cmp     rax, 0
+    jge     .second_cr_lf
+    mov     rdi, err_msg_send
+    jmp     error                      ; exit with error
+
+.second_cr_lf:
     mov     rdi, r8                    ; passs fd (acc_sockfd)
     mov     rsi, cr_lf                 ; pass *buf
     mov     rdx, 2                     ; pass count
     call    sys_sendto                 ; bytes sent in rax on success
+
+    cmp     rax, 0
+    jge     .send_content
+    mov     rdi, err_msg_send
+    jmp     error                      ; exit with error
 
 .send_content:
     mov     rdi, response_buf
@@ -183,11 +221,17 @@ send_status:
     mov     rsi, response_buf          ; pass *buf
     call    sys_sendto                 ; bytes sent placed in rax on success
 
+    cmp     rax, 0
+    jge     .close_socket
+    mov     rdi, err_msg_send
+    jmp     error                      ; exit with error
+
+.close_socket:
     call    sys_close                  ; close socket
 
     cmp     rax, 0
     jge     .success
-    mov     rdi, err_msg_send
+    mov     rdi, err_msg_close_sock
     jmp     error                      ; exit with error
 
 .success:
@@ -216,6 +260,8 @@ exit_failure:
     serving_directory  resq 1
     response_buf       resb RESPONSE_BUF_CAP
     response_buf_len   resq 1
+    request_buf        resb REQUEST_BUF_CAP
+    request_buf_len    resq 1
     list_sock          resq 1
     list_port          resw 1
     cont_len_buf       resb 19
@@ -238,12 +284,14 @@ exit_failure:
     err_msg_dir        db    "Failed to open served directory",0x00
     err_msg_open       db    "Failed to open response file",0x00
     err_msg_read       db    "Failed to read response",0x00
+    err_msg_read_req   db    "Failed to read request",0x00
     err_msg_socket     db    "Failed to create socket",0x00
     err_msg_socket_opt db    "Failed to set socket options",0x00
     err_msg_bind       db    "Failed to bind the address",0x00
     err_msg_listen     db    "Failed to make socket listen",0x00
     err_msg_accept     db    "Failed to accept connection",0x00
     err_msg_send       db    "Failed to send",0x00
+    err_msg_close_sock db    "Failed to close a socket",0x0
 
     content_file_path  db    "index.html",0x00
 
