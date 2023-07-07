@@ -1,15 +1,14 @@
 %include "http.asm"
 %include "net.asm"
+%include "os.asm"
 %include "print.asm"
 %include "string.asm"
 %include "syscall.asm"
 
-; TODO Allocate exact memory
 ; constants
-%define BACKLOG          8
-%define REQUEST_BUF_CAP  2048
-%define RESPONSE_BUF_CAP 2048
-%define CONTENT_BUF_CAP  1024
+%define BACKLOG             8
+%define REQUEST_BUF_CAP     2048
+%define RESPONSE_HEADER_CAP 2048
 
     SECTION .text
 
@@ -32,17 +31,19 @@ handle_arguments:
 
 .get_arguments:
     pop     r8                         ; discard binary name
+
     pop     rdi                        ; listening port
     call    atoi                       ; convert to integer
     xchg    ah, al                     ; change byte order to big endian
     mov     [list_port], rax           ; save listening port
+
     pop     rdi                        ; serving directory
     mov     [serving_directory], rdi   ; save serving directory
 
 change_directory:
-    call    sys_chdir
+    call    sys_chdir                  ; 0 on success
     cmp     rax, 0
-    jge     open_response_file         ; WARN While response is static
+    je      open_response_file         ; TODO Change jumps on success to jumps to local ".continue" labels
     mov     rdi, err_msg_dir
     jmp     error                      ; exit with error
 
@@ -54,24 +55,47 @@ open_response_file:
 
     ; error info
     cmp     rax, 0 
-    jge     read_content
+    jge     get_file_size
     mov     rdi, err_msg_open
     jmp     error                      ; exit with error
 
-read_content:
+get_file_size:
+    mov     r8, rax                    ; save fd
+
     mov     rdi, rax                   ; pass fd
-    mov     rsi, content_buf           ; pass *buf
-    mov     rdx, CONTENT_BUF_CAP       ; pass count
+    mov     rsi, file_stat             ; pass *buf
+    call    sys_fstat                  ; 0 on success
+    ; error is unlikely
+    mov     rax, [file_stat + stat.st_size]
+    mov     [content_len], rax         ; save content length
+
+alloc_response_buffer:
+    mov     rdi, content_len           ; pass size
+    add     rdi, RESPONSE_HEADER_CAP   ; add header size
+    call    mem_alloc                  ; new heap addr on success
+
+    cmp     rax, 0
+    jge     .continue
+    mov     rdi, err_msg_alloc
+    jmp     error                      ; exit with error
+.continue:
+    mov     [response_buf_ptr], rax    ; save response buffer pointer
+    ; HACK Adding pad for using this buffer to construct response later
+    add     rax, RESPONSE_HEADER_CAP
+    mov     [content_buf_ptr], rax     ; save content buffer pointer
+
+read_content:
+    mov     rdi, r8                    ; pass fd
+    mov     rsi, rax                   ; pass *buf
+    mov     rdx, content_len           ; pass count
     call    sys_read                   ; bytes read in rax on success
 
     ; error info
     cmp     rax, 0
-    jge     .success
+    jge     .continue
     mov     rdi, err_msg_read
     jmp     error                      ; exit with error
-
-.success:
-    mov     [content_buf_len], rax     ; write length of content
+.continue:
 
 create_socket:
     mov     rdi, AF_INET               ; pass domain (0x02)
@@ -151,8 +175,8 @@ read_request:
     jmp     error                      ; exit with error
 
 send_response:
-    mov     rdi, response_buf          ; pass *buf
-    mov     rsi, content_buf           ; pass *content
+    mov     rdi, [response_buf_ptr]    ; pass *buf
+    mov     rsi, [content_buf_ptr]     ; pass *content
     call    construct_http_200         ; http 200 response
 
     call    slen                       ; calculate length of response
@@ -197,49 +221,53 @@ exit_failure:
 
     SECTION .bss
 
-    serving_directory  resq 1
-    response_buf       resb RESPONSE_BUF_CAP
-    content_buf        resb CONTENT_BUF_CAP
-    content_buf_len    resq 1
-    request_buf        resb REQUEST_BUF_CAP
-    request_buf_len    resq 1
-    list_sock          resq 1
-    list_port          resw 1
-    cont_len_buf       resb 19
+    file_stat           resb 64
+    serving_directory   resq 1
+    response_header_buf resb RESPONSE_HEADER_CAP
+    response_buf_ptr    resq 1
+    content_buf_ptr     resq 1
+    content_len         resq 1
+    request_buf         resb REQUEST_BUF_CAP
+    request_buf_len     resq 1
+    list_sock           resq 1
+    list_port           resw 1
+    cont_len_buf        resb 19
 
 
     SECTION .data
 
     sock_addr: istruc sockaddr_in
-        at sin_family, dw AF_INET
-        at sin_port,   dw 0
-        at sin_addr,   dd INADDR_ANY
-        at sin_zero,   dd 0x0000000000000000
+        at sin_family,  dw AF_INET
+        at sin_port,    dw 0
+        at sin_addr,    dd INADDR_ANY
+        at sin_zero,    dd 0x0000000000000000
     iend
 
 
     SECTION .rodata
 
-    help_msg           db    "asmerver 0.3",0x0a,"nuid64 <lvkuzvesov@proton.me>",0x0a,"Usage: ",0x0a,0x09,"asmerver <port> <served directory>",0x00
+    help_msg            db    "asmerver 0.3",0x0a,"nuid64 <lvkuzvesov@proton.me>",0x0a,"Usage: ",0x0a,0x09,"asmerver <port> <served directory>",0x00
 
-    err_msg_dir        db    "Failed to open served directory",0x00
-    err_msg_open       db    "Failed to open response file",0x00
-    err_msg_read       db    "Failed to read response",0x00
-    err_msg_read_req   db    "Failed to read request",0x00
-    err_msg_socket     db    "Failed to create socket",0x00
-    err_msg_socket_opt db    "Failed to set socket options",0x00
-    err_msg_bind       db    "Failed to bind the address",0x00
-    err_msg_listen     db    "Failed to make socket listen",0x00
-    err_msg_accept     db    "Failed to accept connection",0x00
-    err_msg_send       db    "Failed to send",0x00
-    err_msg_close_sock db    "Failed to close a socket",0x0
+    ; TODO Make error messages sound less stupid
+    err_msg_alloc       db    "Failed to allocate memory for response",0x00
+    err_msg_dir         db    "Failed to open served directory",0x00
+    err_msg_open        db    "Failed to open response file",0x00
+    err_msg_read        db    "Failed to read response",0x00
+    err_msg_read_req    db    "Failed to read request",0x00
+    err_msg_socket      db    "Failed to create socket",0x00
+    err_msg_socket_opt  db    "Failed to set socket options",0x00
+    err_msg_bind        db    "Failed to bind the address",0x00
+    err_msg_listen      db    "Failed to make socket listen",0x00
+    err_msg_accept      db    "Failed to accept connection",0x00
+    err_msg_send        db    "Failed to send",0x00
+    err_msg_close_sock  db    "Failed to close a socket",0x0
 
-    content_file_path  db    "index.html",0x00
+    content_file_path   db    "index.html",0x00
 
-    http_200           db    "HTTP/1.1 200 OK",0x0d,0x0a,0x00
-    http_200_len       equ   $ - http_200 - 1
+    http_200            db    "HTTP/1.1 200 OK",0x0d,0x0a,0x00
+    http_200_len        equ   $ - http_200 - 1
 
-    cont_length        db    "Content-Length: ",0x00
-    cont_length_len    equ   $ - cont_length - 1
+    cont_length         db    "Content-Length: ",0x00
+    cont_length_len     equ   $ - cont_length - 1
 
-    cr_lf              db    0x0d,0x0a,0x00
+    cr_lf               db    0x0d,0x0a,0x00

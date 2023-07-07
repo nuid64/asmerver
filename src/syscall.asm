@@ -15,6 +15,7 @@ sys_write:
     syscall
     ret
 
+
 ; int open(char *pathname, int flags, mode_t mode)
 ; return: fd on success, -1 on error
 sys_open:
@@ -22,10 +23,27 @@ sys_open:
     syscall
     ret
 
+
 ; int close(int fd)
 ; return: 0 on success, -1 on error
 sys_close:
     mov     rax, 0x03
+    syscall
+    ret
+
+
+; int fstat(int fd, struct stat *buf)
+; return: 0 on success and stat, -1 on error
+sys_fstat:
+    mov     rax, 0x05
+    syscall
+    ret
+
+
+; int brk(void *addr)
+; return: 0 on success, -1 on error
+sys_brk:
+    mov     rax, 0x0C
     syscall
     ret
 
@@ -54,6 +72,7 @@ sys_sendto:
     mov     rax, 0x2c
     syscall
     ret
+
 
 ; int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 ; return: 0 on success, -1 on error
