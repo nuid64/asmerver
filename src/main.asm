@@ -43,9 +43,10 @@ handle_arguments:
 change_directory:
     call    sys_chdir                  ; 0 on success
     cmp     rax, 0
-    je      open_response_file         ; TODO Change jumps on success to jumps to local ".continue" labels
+    je      .continue
     mov     rdi, err_msg_dir
     jmp     error                      ; exit with error
+.continue:
 
 ; SENDING STATIC RESPONSE FOR NOW
 open_response_file:
@@ -55,9 +56,10 @@ open_response_file:
 
     ; error info
     cmp     rax, 0 
-    jge     get_file_size
+    jge     .continue
     mov     rdi, err_msg_open
     jmp     error                      ; exit with error
+.continue:
 
 get_file_size:
     mov     r8, rax                    ; save fd
@@ -105,9 +107,10 @@ create_socket:
 
     ; error info
     cmp     rax, 0
-    jge     set_sock_opt
+    jge     .continue
     mov     rdi, err_msg_socket
     jmp     error                      ; exit with error
+.continue:
 
 set_sock_opt:
     mov     [list_sock], rax           ; save list_sockfd
@@ -120,9 +123,10 @@ set_sock_opt:
 
     ; error info
     cmp     rax, 0
-    je      bind
+    je      .continue
     mov     rdi, err_msg_socket_opt
     jmp     error                      ; exit with error
+.continue:
 
 bind:
     mov     rsi, [list_port]           ; get list_sockfd
@@ -135,9 +139,10 @@ bind:
 
     ; error info
     cmp     rax, 0
-    je      listen
+    je      .continue
     mov     rdi, err_msg_bind
     jmp     error                      ; exit with error
+.continue:
 
 listen:
     mov     rdi, [list_sock]           ; pass list_sockfd
@@ -145,10 +150,11 @@ listen:
     call    sys_listen                 ; 0 in rax on success
 
     cmp     rax, 0
-    je      accept
+    je      .continue
     call    sys_close                  ; close socket
     mov     rdi, err_msg_listen
     jmp     error                      ; exit with error
+.continue:
 
 accept:
     mov     rdi, [list_sock]           ; pass list_sockfd
@@ -157,9 +163,10 @@ accept:
     call    sys_accept                 ; accepted socket's fd in rax on success
 
     cmp     rax, 0
-    jge     read_request
+    jge     .continue
     mov     rdi, err_msg_accept
     jmp     error                      ; exit with error
+.continue:
 
 read_request:
     mov     r8, rax                    ; save acc_sockfd
@@ -170,9 +177,10 @@ read_request:
     call    sys_read                   ; bytes read on success
 
     cmp     rax, 0
-    jge     send_response
+    jge     .continue
     mov     rdi, err_msg_read_req
     jmp     error                      ; exit with error
+.continue:
 
 send_response:
     mov     rdi, [response_buf_ptr]    ; pass *buf
@@ -194,11 +202,10 @@ send_response:
     call    sys_close                  ; close socket
 
     cmp     rax, 0
-    jge     .success
+    jge     .continue
     mov     rdi, err_msg_close_sock
     jmp     error                      ; exit with error
-
-.success:
+.continue:
     jmp     accept                     ; accept loop
 
 
