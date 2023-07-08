@@ -182,6 +182,12 @@ read_request:
     jmp     error                      ; exit with error
 .continue:
 
+check_request_is_get:
+    mov     rdi, request_buf           ; pass *request
+    call    is_get_request
+    cmp     ax, 0                      ; if not GET then don't response
+    jz      listen
+
 send_response:
     mov     rdi, [response_buf_ptr]    ; pass *buf
     mov     rsi, [content_buf_ptr]     ; pass *content

@@ -35,3 +35,25 @@ construct_http_200:
     pop     r8
 
     ret
+
+
+; bool is_get_request(char *request)
+; 1 if request is GET, 0 if not
+is_get_request:
+    mov     ax, 0                      ; false
+
+    cmp     byte[rdi+0], 0x47          ; 'G'
+    jne     .exit
+    cmp     byte[rdi+1], 0x45          ; 'E'
+    jne     .exit
+    cmp     byte[rdi+2], 0x54          ; 'T'
+    jne     .exit
+
+    mov     ax, 1                      ; true
+.exit:
+    ret
+
+
+    SECTION .rodata
+
+    get     db    "GET",0x00

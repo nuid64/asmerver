@@ -18,6 +18,7 @@ struc stat
     .st_ctime_nsec resq 1
 endstruc
 
+    SECTION .text
 ; void* mem_alloc(size_t size)
 ; return: new heap addr on success, -1 on error
 mem_alloc:

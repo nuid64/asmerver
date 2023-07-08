@@ -21,7 +21,7 @@ strcat:
     inc     rdi                        ; increase ptr
     cmp     al, 0x00                   ; until it reached terminating zero
     jne     .place_char
-.end:
+
     pop     rax
     pop     rsi
     pop     rdi
@@ -83,7 +83,6 @@ itoa:
     add     rax, 0x30                  ; last digit
     mov     [rsi+rcx], al
 
-.end:
     pop     rbx
     pop     rax
     pop     rdx
@@ -138,11 +137,11 @@ calc_digits_count:
 .loop:
     inc     rcx
     cmp     rax, 10
-    jb      .end
+    jb      .exit
     xor     rdx, rdx                   ; avoiding error
     div     rbx                        ; dividing by base until ratio is zero
     jmp     .loop
-.end:
+.exit:
     mov     rax, rcx                   ; move result in rax
 
     pop     rcx
