@@ -1,6 +1,6 @@
     SECTION .text
 
-; int read(int fd, void *buf, size_t count)
+; int read(int fd, void* buf, size_t count)
 ; return: bytes read on success, -1 on error
 sys_read:
     mov     rax, 0x00
@@ -8,7 +8,7 @@ sys_read:
     ret
 
 
-; size_t write(int fd, const void *buf, size_t count)
+; size_t write(int fd, const void* buf, size_t count)
 ; return: bytes written on success, -1 on error
 sys_write:
     mov     rax, 0x01
@@ -16,7 +16,7 @@ sys_write:
     ret
 
 
-; int open(char *pathname, int flags, mode_t mode)
+; int open(char* pathname, int flags, mode_t mode)
 ; return: fd on success, -1 on error
 sys_open:
     mov     rax, 0x02
@@ -32,7 +32,7 @@ sys_close:
     ret
 
 
-; int fstat(int fd, struct stat *buf)
+; int fstat(int fd, struct stat* buf)
 ; return: 0 on success and stat, -1 on error
 sys_fstat:
     mov     rax, 0x05
@@ -40,7 +40,7 @@ sys_fstat:
     ret
 
 
-; int brk(void *addr)
+; int brk(void* addr)
 ; return: 0 on success, -1 on error
 sys_brk:
     mov     rax, 0x0C
@@ -56,8 +56,8 @@ sys_socket:
     ret
 
 
-; int accept(int sockfd, struct sockaddr *restrict addr,
-;            socklen_t *restrict addrlen, int flags)
+; int accept(int sockfd, struct sockaddr* restrict addr,
+;            socklen_t* restrict addrlen, int flags)
 ; return: accepted socket's fd on success, -1 on error
 sys_accept:
     mov     rax, 0x2b
@@ -65,8 +65,8 @@ sys_accept:
     ret
 
 
-; size_t sendto(int socket, const void *message, size_t length, int flags,
-;               const struct sockaddr *dest_addr, socklen_t dest_len)
+; size_t sendto(int socket, const void* message, size_t length, int flags,
+;               const struct sockaddr* dest_addr, socklen_t dest_len)
 ; return: bytes sent on success, -1 on error
 sys_sendto:
     mov     rax, 0x2c
@@ -74,7 +74,7 @@ sys_sendto:
     ret
 
 
-; int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+; int bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen)
 ; return: 0 on success, -1 on error
 sys_bind:
     mov     rax, 0x31
@@ -91,7 +91,7 @@ sys_listen:
 
 
 ; int setsockopt(int socket, int level, int option_name,
-;                const void *option_value, socklen_t option_len)
+;                const void* option_value, socklen_t option_len)
 ; return: 0 on success, -1 on error
 sys_setsockopt:
     mov     rax, 0x36
@@ -106,7 +106,7 @@ sys_exit:
     ret
 
 
-; int chdir(const char *path)
+; int chdir(const char* path)
 ; return: 0 on success, -1 on error
 sys_chdir:
     mov     rax, 0x50

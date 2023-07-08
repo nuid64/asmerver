@@ -1,4 +1,4 @@
-; void construct_http_200(char *buf, char *content)
+; void construct_http_200(char* buf, char* content)
 ; Constructs http 200 response in buf
 construct_http_200:
     push    r8

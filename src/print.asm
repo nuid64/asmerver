@@ -1,6 +1,6 @@
     SECTION .text
 
-; void println(char *buf)
+; void println(char* buf)
 ; print buf in STDOUT with linefeed
 println:
     push    rdi
@@ -13,7 +13,7 @@ println:
     ret
 
 
-; int print(char *buf)
+; int print(char* buf)
 ; print buf in STDOUT
 print:
     push    rdi
@@ -32,7 +32,7 @@ print:
     ret
 
 
-; void eprintln(char *err_msg)
+; void eprintln(char* err_msg)
 ; print err_msg in STDERR with linefeed
 eprintln:
     push    rdi
@@ -46,7 +46,7 @@ eprintln:
     ret
 
 
-; void eprint(char *err_msg)
+; void eprint(char* err_msg)
 ; print err_msg in STDERR
 eprint:
     push    rdi

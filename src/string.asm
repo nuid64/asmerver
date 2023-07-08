@@ -1,6 +1,6 @@
     SECTION .text
 
-; void strcat(char *dest, char* src)
+; void strcat(char* dest, char* src)
 ; concatenates src to dest
 strcat:
     push    rdi
@@ -28,7 +28,7 @@ strcat:
     ret
 
 
-; int slen(char *str)
+; int slen(char* str)
 ; calculates length of string
 slen:
     push    rdi
@@ -51,7 +51,7 @@ slen:
     ret
 
 
-; void itoa(int num, char *buf)
+; void itoa(int num, char* buf)
 ; int to char* conversion
 itoa:
     push    rdi
@@ -92,7 +92,7 @@ itoa:
     ret
 
 
-; int atoi(char *buf)
+; int atoi(char* buf)
 ; char* to int conversion
 atoi:
     push    rsi
