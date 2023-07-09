@@ -1,5 +1,5 @@
 ; void construct_http_200(char* buf, char* content)
-; Constructs http 200 response in buf
+; constructs http 200 response in buf
 construct_http_200:
     push    r8
     push    r9
@@ -37,7 +37,7 @@ construct_http_200:
     ret
 
 
-; bool is_get_request(char *request)
+; bool is_get_request(char* request)
 ; 1 if request is GET, 0 if not
 is_get_request:
     mov     ax, 0                      ; false
@@ -51,6 +51,24 @@ is_get_request:
 
     mov     ax, 1                      ; true
 .exit:
+    ret
+
+
+; char* extract_file_path(char* request)
+; HACK places terminating zero at the end of file path
+; and returns its' beginning
+; WARNING maybe file path starts with '/' and maybe it called resource path
+extract_file_path:
+    add     rdi, 5                     ; skip "GET /"
+    mov     rax, rdi                   ; save beginning
+.loop:
+    cmp     byte[rdi], 0x20            ; check if space
+    je      .place_zero
+    inc     rdi                        ; next char
+    jmp     .loop                      ; loop
+.place_zero:
+    mov     byte[rdi], 0x00
+
     ret
 
 

@@ -48,56 +48,6 @@ change_directory:
     jmp     error                      ; exit with error
 .continue:
 
-; SENDING STATIC RESPONSE FOR NOW
-open_response_file:
-    mov     rdi, content_file_path     ; pass pathname
-    mov     rsi, 0                     ; O_RDONLY
-    call    sys_open                   ; fd on success
-
-    ; error info
-    cmp     rax, 0 
-    jge     .continue
-    mov     rdi, err_msg_open
-    jmp     error                      ; exit with error
-.continue:
-
-get_file_size:
-    mov     r8, rax                    ; save fd
-
-    mov     rdi, rax                   ; pass fd
-    mov     rsi, file_stat             ; pass *buf
-    call    sys_fstat                  ; 0 on success
-    ; error is unlikely
-    mov     rax, [file_stat + stat.st_size]
-    mov     [content_len], rax         ; save content length
-
-alloc_response_buffer:
-    mov     rdi, content_len           ; pass size
-    add     rdi, RESPONSE_HEADER_CAP   ; add header size
-    call    mem_alloc                  ; new heap addr on success
-
-    cmp     rax, 0
-    jge     .continue
-    mov     rdi, err_msg_alloc
-    jmp     error                      ; exit with error
-.continue:
-    mov     [response_buf_ptr], rax    ; save response buffer pointer
-    ; HACK Adding pad for using this buffer to construct response later
-    add     rax, RESPONSE_HEADER_CAP
-    mov     [content_buf_ptr], rax     ; save content buffer pointer
-
-read_content:
-    mov     rdi, r8                    ; pass fd
-    mov     rsi, rax                   ; pass *buf
-    mov     rdx, content_len           ; pass count
-    call    sys_read                   ; bytes read in rax on success
-
-    ; error info
-    cmp     rax, 0
-    jge     .continue
-    mov     rdi, err_msg_read
-    jmp     error                      ; exit with error
-.continue:
 
 create_socket:
     mov     rdi, AF_INET               ; pass domain (0x02)
@@ -169,9 +119,9 @@ accept:
 .continue:
 
 read_request:
-    mov     r8, rax                    ; save acc_sockfd
+    mov     [acc_sockfd], rax          ; save acc_sockfd
 
-    mov     rdi, r8                    ; pass acc_sockfd
+    mov     rdi, rax                   ; pass acc_sockfd
     mov     rsi, request_buf           ; pass *buf
     mov     rdx, REQUEST_BUF_CAP       ; pass count
     call    sys_read                   ; bytes read on success
@@ -185,8 +135,68 @@ read_request:
 check_request_is_get:
     mov     rdi, request_buf           ; pass *request
     call    is_get_request
-    cmp     ax, 0                      ; if not GET then don't response
+    cmp     rax, 0                     ; if not GET then don't response
     jz      listen
+
+get_file_path:
+    mov     rdi, request_buf           ; pass *request
+    call    extract_file_path
+
+    cmp     byte[rax], 0x00            ; if standard file path
+    jnz     .continue
+    mov     rax, index_file            ; response with index
+.continue:
+
+open_response_file:
+    mov     rdi, rax                   ; pass *pathname
+    mov     rsi, 0                     ; O_RDONLY
+    call    sys_open                   ; fd on success
+
+    ; TODO 404 on no file
+    ; error info
+    cmp     rax, 0 
+    jge     .continue
+    mov     rdi, err_msg_open
+    jmp     error                      ; exit with error
+.continue:
+
+get_file_size:
+    mov     r8, rax                    ; save fd
+
+    mov     rdi, rax                   ; pass fd
+    mov     rsi, file_stat             ; pass *buf
+    call    sys_fstat                  ; 0 on success
+    ; error is unlikely
+    mov     rax, [file_stat + stat.st_size]
+    mov     [content_len], rax         ; save content length
+
+alloc_response_buffer:
+    mov     rdi, content_len           ; pass size
+    add     rdi, RESPONSE_HEADER_CAP   ; add header size
+    call    mem_alloc                  ; new heap addr on success
+
+    cmp     rax, 0
+    jge     .continue
+    mov     rdi, err_msg_alloc
+    jmp     error                      ; exit with error
+.continue:
+    mov     [response_buf_ptr], rax    ; save response buffer pointer
+    ; HACK Adding pad for using this buffer to construct response later
+    add     rax, RESPONSE_HEADER_CAP
+    mov     [content_buf_ptr], rax     ; save content buffer pointer
+
+read_content:
+    mov     rdi, r8                    ; pass fd
+    mov     rsi, rax                   ; pass *buf
+    mov     rdx, content_len           ; pass count
+    call    sys_read                   ; bytes read in rax on success
+
+    ; error info
+    cmp     rax, 0
+    jge     .continue
+    mov     rdi, err_msg_read
+    jmp     error                      ; exit with error
+.continue:
 
 send_response:
     mov     rdi, [response_buf_ptr]    ; pass *buf
@@ -196,7 +206,7 @@ send_response:
     call    slen                       ; calculate length of response
     mov     rdx, rax                   ; pass count
     mov     rsi, rdi                   ; pass *buf
-    mov     rdi, r8                    ; pass fd (acc_sockfd)
+    mov     rdi, [acc_sockfd]          ; pass fd (acc_sockfd)
     call    sys_sendto                 ; bytes sent in rax on success
 
     cmp     rax, 0
@@ -208,7 +218,7 @@ send_response:
     call    sys_close                  ; close socket
 
     cmp     rax, 0
-    jge     .continue
+    je      .continue
     mov     rdi, err_msg_close_sock
     jmp     error                      ; exit with error
 .continue:
@@ -234,6 +244,7 @@ exit_failure:
 
     SECTION .bss
 
+    acc_sockfd          resq 1
     file_stat           resb 64
     serving_directory   resq 1
     response_header_buf resb RESPONSE_HEADER_CAP
@@ -259,7 +270,7 @@ exit_failure:
 
     SECTION .rodata
 
-    help_msg            db    "asmerver 0.3",0x0a,"nuid64 <lvkuzvesov@proton.me>",0x0a,"Usage: ",0x0a,0x09,"asmerver <port> <served directory>",0x00
+    help_msg            db    "asmerver 0.4",0x0a,"nuid64 <lvkuzvesov@proton.me>",0x0a,"Usage: ",0x0a,0x09,"asmerver <port> <served directory>",0x00
 
     ; TODO Make error messages sound less stupid
     err_msg_alloc       db    "Failed to allocate memory for response",0x00
@@ -275,7 +286,7 @@ exit_failure:
     err_msg_send        db    "Failed to send",0x00
     err_msg_close_sock  db    "Failed to close a socket",0x0
 
-    content_file_path   db    "index.html",0x00
+    index_file          db    "index.html",0x00
 
     http_200            db    "HTTP/1.1 200 OK",0x0d,0x0a,0x00
     http_200_len        equ   $ - http_200 - 1

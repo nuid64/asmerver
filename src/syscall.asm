@@ -16,7 +16,7 @@ sys_write:
     ret
 
 
-; int open(char* pathname, int flags, mode_t mode)
+; int open(char* pathname, int flags)
 ; return: fd on success, -1 on error
 sys_open:
     mov     rax, 0x02
