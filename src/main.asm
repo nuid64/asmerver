@@ -142,7 +142,7 @@ get_file_path:
     mov     rdi, request_buf           ; pass *request
     call    extract_file_path
 
-    cmp     byte[rax], 0x00            ; if standard file path
+    cmp     byte[rax], 0               ; if standard file path (points at term zero)
     jnz     .continue
     mov     rax, index_file            ; response with index
 .continue:

@@ -42,11 +42,11 @@ construct_http_200:
 is_get_request:
     mov     ax, 0                      ; false
 
-    cmp     byte[rdi+0], 0x47          ; 'G'
+    cmp     byte[rdi+0], 'G'
     jne     .exit
-    cmp     byte[rdi+1], 0x45          ; 'E'
+    cmp     byte[rdi+1], 'E'
     jne     .exit
-    cmp     byte[rdi+2], 0x54          ; 'T'
+    cmp     byte[rdi+2], 'T'
     jne     .exit
 
     mov     ax, 1                      ; true
@@ -62,7 +62,7 @@ extract_file_path:
     add     rdi, 5                     ; skip "GET /"
     mov     rax, rdi                   ; save beginning
 .loop:
-    cmp     byte[rdi], 0x20            ; check if space
+    cmp     byte[rdi], ' '             ; check if space
     je      .place_zero
     inc     rdi                        ; next char
     jmp     .loop                      ; loop
@@ -70,8 +70,3 @@ extract_file_path:
     mov     byte[rdi], 0x00
 
     ret
-
-
-    SECTION .rodata
-
-    get     db    "GET",0x00

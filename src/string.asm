@@ -95,7 +95,7 @@ itoa:
 ; char* to int conversion
 atoi:
     push    rsi
-    mov     rax, 0
+    xor     rax, rax
 
 .loop:
     movzx   rsi, byte [rdi]
