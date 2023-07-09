@@ -272,19 +272,18 @@ exit_failure:
 
     help_msg            db    "asmerver 0.4",0x0a,"nuid64 <lvkuzvesov@proton.me>",0x0a,"Usage: ",0x0a,0x09,"asmerver <port> <served directory>",0x00
 
-    ; TODO Make error messages sound less stupid
-    err_msg_alloc       db    "Failed to allocate memory for response",0x00
-    err_msg_dir         db    "Failed to open served directory",0x00
-    err_msg_open        db    "Failed to open response file",0x00
-    err_msg_read        db    "Failed to read response",0x00
-    err_msg_read_req    db    "Failed to read request",0x00
+    err_msg_alloc       db    "Memory allocating completed with error",0x00
+    err_msg_dir         db    "Can't open served directory",0x00
+    err_msg_open        db    "Can't open response file",0x00
+    err_msg_read        db    "An error occured during reading a file",0x00
+    err_msg_read_req    db    "An error occured during reading a request",0x00
     err_msg_socket      db    "Failed to create socket",0x00
     err_msg_socket_opt  db    "Failed to set socket options",0x00
-    err_msg_bind        db    "Failed to bind the address",0x00
-    err_msg_listen      db    "Failed to make socket listen",0x00
-    err_msg_accept      db    "Failed to accept connection",0x00
-    err_msg_send        db    "Failed to send",0x00
-    err_msg_close_sock  db    "Failed to close a socket",0x0
+    err_msg_bind        db    "Can't bind address",0x00
+    err_msg_listen      db    "Socket don't want to listen",0x00
+    err_msg_accept      db    "Connection not accepted",0x00
+    err_msg_send        db    "An error occured during sending response",0x00
+    err_msg_close_sock  db    "Failed to close socket",0x0
 
     index_file          db    "index.html",0x00
 
