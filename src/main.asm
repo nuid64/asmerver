@@ -214,7 +214,7 @@ exit_failure:
 
     SECTION .rodata
 
-    help_msg            db    "asmerver 0.4",0x0a,"nuid64 <lvkuzvesov@proton.me>",0x0a,"Usage: ",0x0a,0x09,"asmerver <port> <served directory>",0x00
+    help_msg            db    "asmerver 1.0",0x0a,"nuid64 <lvkuzvesov@proton.me>",0x0a,"Usage: ",0x0a,0x09,"asmerver <port> <served directory>",0x00
 
     err_msg_alloc       db    "Memory allocating completed with error",0x00
     err_msg_dir         db    "Can't open served directory",0x00
