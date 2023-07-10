@@ -18,33 +18,41 @@ struc stat
     .st_ctime_nsec resq 1
 endstruc
 
+
     SECTION .text
+
 ; void* mem_alloc(size_t size)
 ; return: new heap addr on success, -1 on error
 mem_alloc:
-    push    rdi                        ; save size
+    push    rdi
+    push    r8
+
+    mov     r8, rdi                    ; save size
     xor     rdi, rdi                   ; zero to get current heap addr
     call    sys_brk
 
     cmp     rax, 0                     ; return if error occured
-    jl      .exit_early
+    jl      .exit
 
-    pop     rdi                        ; get size
+    mov     rdi, r8                    ; get size
     lea     rdi, [rdi + rax]           ; load new heap addr
     call    sys_brk
     jmp     .exit
 
-.exit_early:
-    pop     rdi
 .exit:
+    pop     r8
+    pop     rdi
+
     ret
 
 
 ; void* current_heap_addr()
 current_heap_addr:
     push rdi
+
     xor     rdi, rdi                   ; zero to get current heap addr
     call    sys_brk
+
     pop rdi
 
     ret

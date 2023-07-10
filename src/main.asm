@@ -35,12 +35,11 @@ handle_arguments:
     pop     rdi                        ; listening port
     call    atoi                       ; convert to integer
     xchg    ah, al                     ; change byte order to big endian
-    mov     [list_port], rax           ; save listening port
+    mov     [list_sock_port], rax      ; save listening port
 
     pop     rdi                        ; serving directory
-    mov     [serving_directory], rdi   ; save serving directory
 
-change_directory:
+.change_directory:
     call    sys_chdir                  ; 0 on success
     cmp     rax, 0
     je      .continue
@@ -79,8 +78,8 @@ set_sock_opt:
 .continue:
 
 bind:
-    mov     rsi, [list_port]           ; get list_sockfd
-    mov     [sock_addr + sin_port], rsi; set port
+    mov     rsi, [list_sock_port]
+    mov     [sock_addr+sin_port], rsi  ; set port
 
     mov     rdi, [list_sock]           ; pass list_sockfd
     mov     rsi, sock_addr             ; pass *addr
@@ -117,10 +116,10 @@ accept:
     mov     rdi, err_msg_accept
     jmp     error                      ; exit with error
 .continue:
-    mov     [acc_sockfd], rax          ; save acc_sockfd
+    mov     r12, rax                   ; save acc_sockfd
 
 read_request:
-    mov     rdi, [acc_sockfd]          ; pass acc_sockfd
+    mov     rdi, r12                   ; pass acc_sockfd
     mov     rsi, request_buf           ; pass *buf
     mov     rdx, REQUEST_BUF_CAP       ; pass count
     call    sys_read                   ; bytes read on success
@@ -157,16 +156,16 @@ open_response_file:
 
 response_200:
     mov     rdi, rax                   ; pass contentfd
-    mov     rsi, [acc_sockfd]          ; pass sockfd
+    mov     rsi, r12                   ; pass sockfd
     call    send_http_200
     jmp     close_socket
 
 response_404:
-    mov     rdi, [acc_sockfd]          ; pass sockfd
+    mov     rdi, r12                   ; pass sockfd
     call    send_http_404
 
 close_socket:
-    mov     rdi, [acc_sockfd]          ; pass fd
+    mov     rdi, r12                   ; pass fd
     call    sys_close                  ; close socket
 
     cmp     rax, 0
@@ -196,18 +195,11 @@ exit_failure:
 
     SECTION .bss
 
-    acc_sockfd          resq 1
-    file_stat           resb 64
-    serving_directory   resq 1
-    response_header_buf resb RESPONSE_HEADER_CAP
-    response_buf_ptr    resq 1
-    content_buf_ptr     resq 1
-    content_len         resq 1
+    list_sock           resq 1
+    list_sock_port      resw 1
     request_buf         resb REQUEST_BUF_CAP
     request_buf_len     resq 1
-    list_sock           resq 1
-    list_port           resw 1
-    cont_len_buf        resb 19
+    file_stat           resb 64
 
 
     SECTION .data

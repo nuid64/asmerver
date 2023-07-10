@@ -1,8 +1,11 @@
-; TODO Minimize amount of global variables
-
 ; void send_http_200(int contentfd, int sockfd)
 ; send http 200 response with with content from given file to given socket
 send_http_200:
+    push    rdi
+    push    rsi
+    push    r8
+    push    r9
+
 ; get file size
     mov     r8, rdi                    ; save fd
     mov     r9, rsi                    ; save sockfd
@@ -18,10 +21,12 @@ send_http_200:
     call    current_heap_addr
     push    rax                        ; save current heap addr
 
-    mov     rdi, content_len           ; pass size
+    mov     rdi, [content_len]         ; pass size
     call    alloc_response_buffer
 
+    pop     rax                        ; get ptr to beginning of allocated buf
     mov     [response_buf_ptr], rax    ; save response buffer pointer
+
     ; HACK Adding pad for using this buffer to construct response later
     add     rax, RESPONSE_HEADER_CAP
     mov     [content_buf_ptr], rax     ; save content buffer pointer
@@ -29,7 +34,7 @@ send_http_200:
 ; read content
     mov     rdi, r8                    ; pass fd
     mov     rsi, rax                   ; pass *buf
-    mov     rdx, content_len           ; pass count
+    mov     rdx, [content_len]         ; pass count
     call    read_file
 
 ; make response
@@ -45,17 +50,29 @@ send_http_200:
     call    send
 
 ; free buffer
-    pop     rdi                        ; get old heap addr
     call    sys_brk
+
+    pop     r9
+    pop     r8
+    pop     rsi
+    pop     rdi
 
     ret
 
 
 send_http_404:
+    push    rsi
+    push    rdx
+    
     ; socket in rdi
     mov     rsi, http_404              ; pass message
     mov     rdx, http_404_len          ; pass length
     call    send
+
+    pop     rdx
+    pop     rsi
+
+    ret
 
 
 ; void construct_http_200(char* buf, char* content)
@@ -64,7 +81,6 @@ construct_http_200:
     push    r8
     push    r9
 
-    mov     [rdi], byte 0x00           ; HACK 'mark' buffer as empty
     mov     r8, rdi                    ; save *buf
     mov     r9, rsi                    ; save *content
 
@@ -77,10 +93,10 @@ construct_http_200:
     mov     rdi, r9                    ; pass *content
     call    slen                       ; calculate length of content
     mov     rdi, rax                   ; pass num
-    mov     rsi, cont_len_buf          ; pass *buf
+    mov     rsi, content_len_buf       ; pass *buf
     call    itoa                       ; convert content length to string
     mov     rdi, r8
-    mov     rsi, cont_len_buf
+    mov     rsi, content_len_buf
     call    strcat                     ; content length
 
     mov     rdi, r8
@@ -117,6 +133,8 @@ is_get_request:
 ; char* alloc_response_buffer(int size)
 ; allocate buffer for response body + head and get buffer's address
 alloc_response_buffer:
+    push    rdi
+
     add     rdi, RESPONSE_HEADER_CAP   ; add header size
     call    mem_alloc                  ; new heap addr on success
 
@@ -125,6 +143,7 @@ alloc_response_buffer:
     mov     rdi, err_msg_alloc
     jmp     error                      ; exit with error
 .exit:
+    pop     rdi
 
     ret
 
@@ -133,6 +152,8 @@ alloc_response_buffer:
 ; char* extract_resource_path(char* request)
 ; returns pointer to the resource path
 extract_resource_path:
+    push    rdi
+
     add     rdi, 5                     ; skip "GET /"
     mov     rax, rdi                   ; save beginning
 .loop:
@@ -143,7 +164,17 @@ extract_resource_path:
 .place_zero:
     mov     byte[rdi], 0x00
 
+    pop     rdi
+
     ret
+
+
+    SECTION .bss
+
+    response_buf_ptr    resq 1
+    content_buf_ptr     resq 1
+    content_len         resq 1
+    content_len_buf     resb 19
 
 
     SECTION .rodata
