@@ -1,14 +1,14 @@
+; constants
+%define BACKLOG             8
+%define REQUEST_BUF_CAP     2048
+%define RESPONSE_HEADER_CAP 2048
+
 %include "http.asm"
 %include "net.asm"
 %include "os.asm"
 %include "print.asm"
 %include "string.asm"
 %include "syscall.asm"
-
-; constants
-%define BACKLOG             8
-%define REQUEST_BUF_CAP     2048
-%define RESPONSE_HEADER_CAP 2048
 
     SECTION .text
 
@@ -117,11 +117,10 @@ accept:
     mov     rdi, err_msg_accept
     jmp     error                      ; exit with error
 .continue:
-
-read_request:
     mov     [acc_sockfd], rax          ; save acc_sockfd
 
-    mov     rdi, rax                   ; pass acc_sockfd
+read_request:
+    mov     rdi, [acc_sockfd]          ; pass acc_sockfd
     mov     rsi, request_buf           ; pass *buf
     mov     rdx, REQUEST_BUF_CAP       ; pass count
     call    sys_read                   ; bytes read on success
@@ -140,7 +139,7 @@ check_request_is_get:
 
 get_file_path:
     mov     rdi, request_buf           ; pass *request
-    call    extract_file_path
+    call    extract_resource_path
 
     cmp     byte[rax], 0               ; if standard file path (points at term zero)
     jnz     .continue
@@ -152,69 +151,22 @@ open_response_file:
     mov     rsi, 0                     ; O_RDONLY
     call    sys_open                   ; fd on success
 
-    ; TODO 404 on no file
     ; error info
     cmp     rax, 0 
-    jge     .continue
-    mov     rdi, err_msg_open
-    jmp     error                      ; exit with error
-.continue:
+    jl      response_404               ; response 404 if can't open file
 
-get_file_size:
-    mov     r8, rax                    ; save fd
+response_200:
+    mov     rdi, rax                   ; pass contentfd
+    mov     rsi, [acc_sockfd]          ; pass sockfd
+    call    send_http_200
+    jmp     close_socket
 
-    mov     rdi, rax                   ; pass fd
-    mov     rsi, file_stat             ; pass *buf
-    call    sys_fstat                  ; 0 on success
-    ; error is unlikely
-    mov     rax, [file_stat + stat.st_size]
-    mov     [content_len], rax         ; save content length
+response_404:
+    mov     rdi, [acc_sockfd]          ; pass sockfd
+    call    send_http_404
 
-alloc_response_buffer:
-    mov     rdi, content_len           ; pass size
-    add     rdi, RESPONSE_HEADER_CAP   ; add header size
-    call    mem_alloc                  ; new heap addr on success
-
-    cmp     rax, 0
-    jge     .continue
-    mov     rdi, err_msg_alloc
-    jmp     error                      ; exit with error
-.continue:
-    mov     [response_buf_ptr], rax    ; save response buffer pointer
-    ; HACK Adding pad for using this buffer to construct response later
-    add     rax, RESPONSE_HEADER_CAP
-    mov     [content_buf_ptr], rax     ; save content buffer pointer
-
-read_content:
-    mov     rdi, r8                    ; pass fd
-    mov     rsi, rax                   ; pass *buf
-    mov     rdx, content_len           ; pass count
-    call    sys_read                   ; bytes read in rax on success
-
-    ; error info
-    cmp     rax, 0
-    jge     .continue
-    mov     rdi, err_msg_read
-    jmp     error                      ; exit with error
-.continue:
-
-send_response:
-    mov     rdi, [response_buf_ptr]    ; pass *buf
-    mov     rsi, [content_buf_ptr]     ; pass *content
-    call    construct_http_200         ; http 200 response
-
-    call    slen                       ; calculate length of response
-    mov     rdx, rax                   ; pass count
-    mov     rsi, rdi                   ; pass *buf
-    mov     rdi, [acc_sockfd]          ; pass fd (acc_sockfd)
-    call    sys_sendto                 ; bytes sent in rax on success
-
-    cmp     rax, 0
-    jge     .close_socket
-    mov     rdi, err_msg_send
-    jmp     error                      ; exit with error
-
-.close_socket:
+close_socket:
+    mov     rdi, [acc_sockfd]          ; pass fd
     call    sys_close                  ; close socket
 
     cmp     rax, 0
@@ -274,7 +226,6 @@ exit_failure:
 
     err_msg_alloc       db    "Memory allocating completed with error",0x00
     err_msg_dir         db    "Can't open served directory",0x00
-    err_msg_open        db    "Can't open response file",0x00
     err_msg_read        db    "An error occured during reading a file",0x00
     err_msg_read_req    db    "An error occured during reading a request",0x00
     err_msg_socket      db    "Failed to create socket",0x00
@@ -286,9 +237,6 @@ exit_failure:
     err_msg_close_sock  db    "Failed to close socket",0x0
 
     index_file          db    "index.html",0x00
-
-    http_200            db    "HTTP/1.1 200 OK",0x0d,0x0a,0x00
-    http_200_len        equ   $ - http_200 - 1
 
     cont_length         db    "Content-Length: ",0x00
     cont_length_len     equ   $ - cont_length - 1

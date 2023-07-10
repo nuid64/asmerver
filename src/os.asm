@@ -38,3 +38,17 @@ mem_alloc:
     pop     rdi
 .exit:
     ret
+
+
+; int read_flie(int fd, void* buf, size_t count)
+; read the file to the buffer
+read_file:
+    call    sys_read                   ; bytes read in rax on success
+
+    ; error info
+    cmp     rax, 0
+    jge     .exit
+    mov     rdi, err_msg_read
+    jmp     error                      ; exit with error
+.exit:
+    ret
