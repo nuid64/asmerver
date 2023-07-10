@@ -23,7 +23,7 @@ endstruc
 ; return: new heap addr on success, -1 on error
 mem_alloc:
     push    rdi                        ; save size
-    xor     rdi, rdi                   ; zero for getting current heap addr
+    xor     rdi, rdi                   ; zero to get current heap addr
     call    sys_brk
 
     cmp     rax, 0                     ; return if error occured
@@ -39,6 +39,15 @@ mem_alloc:
 .exit:
     ret
 
+
+; void* current_heap_addr()
+current_heap_addr:
+    push rdi
+    xor     rdi, rdi                   ; zero to get current heap addr
+    call    sys_brk
+    pop rdi
+
+    ret
 
 ; int read_flie(int fd, void* buf, size_t count)
 ; read the file to the buffer

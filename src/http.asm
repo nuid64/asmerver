@@ -14,8 +14,10 @@ send_http_200:
     mov     rax, [file_stat + stat.st_size]
     mov     [content_len], rax         ; save content length
 
-; TODO Free allocated memory
 ; allocate buffer for response
+    call    current_heap_addr
+    push    rax                        ; save current heap addr
+
     mov     rdi, content_len           ; pass size
     call    alloc_response_buffer
 
@@ -41,6 +43,10 @@ send_http_200:
     mov     rsi, [response_buf_ptr]    ; pass *message
     mov     rdi, r9                    ; pass socket
     call    send
+
+; free buffer
+    pop     rdi                        ; get old heap addr
+    call    sys_brk
 
     ret
 
