@@ -7,7 +7,7 @@ Features:
 * 200 and 404 responses
 
 # Installation
-`make` for debug version and `make release` for stripped version.
+`make release` or just `make` for release version and `make debug` for debug version.
 
 Without make:
 ```
