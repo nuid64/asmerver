@@ -14,4 +14,4 @@ obj:
 		mkdir $@
 
 clean:
-	rm -rf obj $(target)
+	rm -rf obj/*
