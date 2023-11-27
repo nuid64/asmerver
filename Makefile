@@ -1,17 +1,22 @@
-target = asmerver
+TARGET := asmerver
+BUILD := build
 
-# Default build is release
-release: obj
-		nasm -felf64 -I src/ src/main.asm -o obj/main.o
-		ld obj/main.o -o $(target)
-		strip -s $(target)
+NASM_FLAGS := -f elf64 -I src/
 
-debug: obj
-		nasm -gdwarf -felf64 -Isrc/ src/main.asm -o obj/main.o
-		ld obj/main.o -o $(target)
+# Default build is release (top most at the file)
+release: $(BUILD)
+	nasm $(NASM_FLAGS) src/main.asm -o $(BUILD)/main.o
+	ld $(BUILD)/main.o -o $(TARGET)
+	strip -s $(TARGET)
 
-obj:
-		mkdir $@
+debug: $(BUILD)
+	nasm -gdwarf $(NASM_FLAGS) src/main.asm -o $(BUILD)/main.o
+	ld $(BUILD)/main.o -o $(TARGET)
+
+$(BUILD):
+	mkdir $(BUILD)
 
 clean:
-	rm -rf obj/*
+	rm -rf $(BUILD)
+
+.PHONY: release debug clean
