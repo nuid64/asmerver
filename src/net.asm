@@ -3,10 +3,10 @@
 %define htons(x) ((x >> 8) & 0xFF) | ((x & 0xFF) << 8)
 
 struc sockaddr_in
-    sin_family resw 1
-    sin_port   resw 1
-    sin_addr   resd 1
-    sin_zero   resb 8
+        sin_family resw 1
+        sin_port   resw 1
+        sin_addr   resd 1
+        sin_zero   resq 1
 endstruc
 
 SOCK_STREAM equ 0x01
@@ -15,27 +15,28 @@ IPPROTO_TCP equ 0x06
 INADDR_ANY  equ 0x00000000
 
 
-    SECTION .text
+        section .text
 
-; void send(int socket, void* message, size_t length)
-; send bytes to socket
+; IN  = RDI: u64 socketfd
+;       RSI: void *message
+;       RDX: u64 length
 send:
-    push    r10
-    push    r8
-    push    r9
+        push       r10
+        push       r8
+        push       r9
 
-    mov     r10, 0                     ; pass flags
-    mov     r8, 0                      ; pass *dest_addr (NULL)
-    mov     r9, 0                      ; pass dest_len (0)
-    call    sys_sendto                 ; bytes sent in rax on success
+        mov        r10, 0                                      ; pass flags
+        mov        r8, 0                                       ; pass *dest_addr (NULL)
+        mov        r9, 0                                       ; pass dest_len (0)
+        call       sys_sendto                                  ; bytes sent in rax on success
 
-    cmp     rax, 0
-    jge     .exit
-    mov     rdi, err_msg_send
-    jmp     error                      ; exit with error
+        cmp        rax, 0
+        jge        .exit
+        mov        rdi, err_msg_send
+        jmp        error                                       ; exit with error
 .exit:
-    pop     r9
-    pop     r8
-    pop     r10
+        pop        r9
+        pop        r8
+        pop        r10
 
-    ret
+        ret

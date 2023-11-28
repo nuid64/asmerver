@@ -1,114 +1,148 @@
-    SECTION .text
+        section .text
 
-; int read(int fd, void* buf, size_t count)
-; return: bytes read on success, -1 on error
+; IN  = RDI: u64 fd
+;       RSI: void *buf
+;       RDX: u64 count
+; OUT = RAX: u64 byte read
+;                -1 on err
 sys_read:
-    mov     rax, 0x00
-    syscall
-    ret
+        mov        rax, 0x00
+        syscall
+        ret
 
 
-; size_t write(int fd, const void* buf, size_t count)
-; return: bytes written on success, -1 on error
+; IN  = RDI: u64 fd
+;       RSI: void *buf
+;       RDX: u64 count
+; OUT = RAX: u64 bytes written
+;                -1 on err
 sys_write:
-    mov     rax, 0x01
-    syscall
-    ret
+        mov        rax, 0x01
+        syscall
+        ret
 
 
-; int open(char* pathname, int flags)
-; return: fd on success, -1 on error
+; IN  = RDI: char *pathname
+;       RSI: u64 flags
+; OUT = RAX: u64 fd
+;                -1 on err
 sys_open:
-    mov     rax, 0x02
-    syscall
-    ret
+        mov        rax, 0x02
+        syscall
+        ret
 
 
-; int close(int fd)
-; return: 0 on success, -1 on error
+; IN  = RDI: u64 fd
+; OUT = RAX: u64 0
+;                -1 on err
 sys_close:
-    mov     rax, 0x03
-    syscall
-    ret
+        mov        rax, 0x03
+        syscall
+        ret
 
 
-; int fstat(int fd, struct stat* buf)
-; return: 0 on success and stat, -1 on error
+; IN  = RDI: u64 fd struct stat *buf
+;       RSI: struct stat *buf
+; OUT = RAX: u64 0
+;                -1 on err
+;       RSI: struct stat *buf
 sys_fstat:
-    mov     rax, 0x05
-    syscall
-    ret
+        mov        rax, 0x05
+        syscall
+        ret
 
 
-; int brk(void* addr)
-; return: 0 on success, -1 on error
+; IN  = RDI: void *addr
+; OUT = RAX: u64 0
+;                -1 on err
 sys_brk:
     mov     rax, 0x0C
     syscall
     ret
 
 
-; int socket(int domain, int type, int protocol)
-; return: fd on success, -1 on error
+; IN  = RDI: u64 domain
+;       RSI: u64 type
+;       RDX: u64 protocol
+; OUT = RAX: u64 fd
+;                -1 on err
 sys_socket:
-    mov     rax, 0x29
-    syscall
-    ret
+        mov        rax, 0x29
+        syscall
+        ret
 
 
-; int accept(int sockfd, struct sockaddr* restrict addr,
-;            socklen_t* restrict addrlen, int flags)
-; return: accepted socket's fd on success, -1 on error
+; IN  = RDI: u64 sockfd
+;       RSI: struct sockaddr *addr
+;       RDX: socklen_t* addrlen
+;       RCX: u64 flags
+; OUT = RAX: u64 accepted socket's fd
+;                -1 on err
 sys_accept:
-    mov     rax, 0x2b
-    syscall
-    ret
+        mov        rax, 0x2b
+        syscall
+        ret
 
 
-; size_t sendto(int socket, const void* message, size_t length, int flags,
-;               const struct sockaddr* dest_addr, socklen_t dest_len)
-; return: bytes sent on success, -1 on error
+; IN  = RDI: u64 sockfd
+;       RSI: void *message
+;       RDX: u64 length
+;       RCX: u64 flags
+;       R8:  struct sockaddr *dest_addr
+;       R9:  socklen_t dest_len
+; OUT = RAX: u64 bytes sent
+;                -1 on err
 sys_sendto:
-    mov     rax, 0x2c
-    syscall
-    ret
+        mov        rax, 0x2c
+        syscall
+        ret
 
 
-; int bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen)
-; return: 0 on success, -1 on error
+; IN  = RDI: u64
+;       RSI: struct sockaddr *addr
+;       RDX: socklen_t addrlen
+; OUT = RAX: u64 0
+;                -1 on err
 sys_bind:
-    mov     rax, 0x31
-    syscall
-    ret
+        mov        rax, 0x31
+        syscall
+        ret
 
 
-; int listen(int sockfd, int backlog)
-; return: 0 on success, -1 on error
+; IN  = RDI: u64 sockfd
+;       RSI: u64 backlog
+; OUT = RAX: u64 0
+;                -1 on err
 sys_listen:
-    mov     rax, 0x32
-    syscall
-    ret
+        mov        rax, 0x32
+        syscall
+        ret
 
 
-; int setsockopt(int socket, int level, int option_name,
-;                const void* option_value, socklen_t option_len)
-; return: 0 on success, -1 on error
+; IN  = RDI: u64 sockfd setsockopt(int socket, int level, int option_name,
+;       RSI: u64 level
+;       RDX: u64 option_name
+;       RCX: void *option_value
+;       R8:  socklen_t option_len
+; OUT = RAX: u64 0
+;                -1 on err
 sys_setsockopt:
-    mov     rax, 0x36
-    syscall
-    ret
+        mov        rax, 0x36
+        syscall
+        ret
 
 
-; void exit(int status)
+; IN  = RDI: u64 status
 sys_exit:
-    mov     rax, 0x3c
-    syscall
-    ret
+        mov        rax, 0x3c
+        syscall
+        ret
 
 
-; int chdir(const char* path)
-; return: 0 on success, -1 on error
+; IN  = RDI: char *path
+; OUT = RAX: u64 0
+;                -1 on err
 sys_chdir:
-    mov     rax, 0x50
-    syscall
-    ret
+        mov        rax, 0x50
+        syscall
+        ret
